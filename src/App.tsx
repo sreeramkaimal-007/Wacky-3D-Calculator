@@ -55,6 +55,7 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { SettingsScreen } from './components/SettingsScreen';
 import { PremiumModal } from './components/PremiumModal';
 import { AndroidBlueprintDrawer } from './components/AndroidBlueprintDrawer';
+import { PWAInstallButton } from './components/PWAInstallButton';
 
 const OPERATORS = new Set(['+', '−', '×', '÷']);
 
@@ -770,6 +771,9 @@ export default function App() {
                 setPremiumOpen(true);
               }}
             />
+            <div className="mt-3 max-w-[440px] mx-auto lg:hidden">
+              <PWAInstallButton variant="card" />
+            </div>
           </section>
 
           {/* Right Column: Studio Inspector (Visible on lg+, or on mobile when mobileTab !== 'calculator') */}
@@ -794,13 +798,16 @@ export default function App() {
                     : 'Muted'}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setAndroidExportOpen(true)}
-                className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline whitespace-nowrap shrink-0 cursor-pointer"
-              >
-                Android Studio Export
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <PWAInstallButton variant="compact" />
+                <button
+                  type="button"
+                  onClick={() => setAndroidExportOpen(true)}
+                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  Android Studio Export
+                </button>
+              </div>
             </div>
 
             {renderStudioPanel(

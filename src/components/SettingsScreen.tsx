@@ -15,6 +15,7 @@ import {
   UserPreferences,
 } from '../types/calculator';
 import { AppIcon } from './AppIcon';
+import { PWAInstallButton } from './PWAInstallButton';
 import { PRIVACY_POLICY_TEXT } from '../data/AndroidProjectExport';
 
 interface SettingsScreenProps {
@@ -266,6 +267,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       </div>
 
       {/* Quick Shortcuts & Android Project Export */}
+      <PWAInstallButton variant="card" />
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <button
