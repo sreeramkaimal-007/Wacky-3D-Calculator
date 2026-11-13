@@ -22,12 +22,11 @@ jobs:
 
       - name: Build web app & Android APK
         run: |
-          npm install
+          npm install --legacy-peer-deps
           npm run build
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          if [ ! -f capacitor.config.ts ] && [ ! -f capacitor.config.json ]; then
-            npx cap init "Wacky 3D Calculator" "com.wacky3d.calculator" --web-dir=dist
-          fi
+          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android
+          rm -f capacitor.config.ts
+          node -e 'require("fs").writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.wacky3d.calculator",appName:"Wacky 3D Calculator",webDir:"dist",android:{allowMixedContent:false,backgroundColor:"#FFEAF3"}}, null, 2))'
           npx cap add android
           npx cap sync android
           cd android

@@ -1,0 +1,9 @@
+{
+  "appId": "com.wacky3d.calculator",
+  "appName": "Wacky 3D Calculator",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#FFEAF3"
+  }
+}
