@@ -1,0 +1,8 @@
+{
+  "name": "Wacky 3D Calculator",
+  "description": "Playful, tactile 3D toy calculator featuring 5 squishy button physics styles, 15 synthesized sound packs, 8 curated themes, calculation history, and Android Studio Jetpack Compose export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
