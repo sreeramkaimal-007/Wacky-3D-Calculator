@@ -1,0 +1,96 @@
+name: Build Play Store App Bundle (AAB)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Version Code (integer, increase by 1 for each Play Store upload)'
+        required: true
+        default: '1'
+      version_name:
+        description: 'Version Name (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build-aab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASS" ]; then
+            echo "ERROR: Missing signing secrets in GitHub Settings -> Secrets and variables -> Actions."
+            echo "Please add: ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build web app & sync Capacitor Android
+        run: |
+          npm install --legacy-peer-deps
+          npm run build
+          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android @capacitor-community/admob
+          rm -f capacitor.config.ts
+          node -e 'require("fs").writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.wacky3d.calculator",appName:"Wacky 3D Calculator",webDir:"dist",android:{allowMixedContent:false,backgroundColor:"#FFEAF3"}}, null, 2))'
+          npx cap add android
+          node -e '
+            const fs = require("fs");
+            const manifestPath = "android/app/src/main/AndroidManifest.xml";
+            let xml = fs.readFileSync(manifestPath, "utf8");
+            if (!xml.includes("android.permission.VIBRATE")) {
+              xml = xml.replace("<application", "<uses-permission android:name=\"android.permission.VIBRATE\" />\n    <application");
+            }
+            if (!xml.includes("com.google.android.gms.permission.AD_ID")) {
+              xml = xml.replace("<application", "<uses-permission android:name=\"com.google.android.gms.permission.AD_ID\" />\n    <application");
+            }
+            if (!xml.includes("com.google.android.gms.ads.APPLICATION_ID")) {
+              xml = xml.replace("</application>", "    <meta-data\n            android:name=\"com.google.android.gms.ads.APPLICATION_ID\"\n            android:value=\"ca-app-pub-4582959030219358~8991228181\" />\n    </application>");
+            }
+            fs.writeFileSync(manifestPath, xml);
+
+            const gradlePath = "android/app/build.gradle";
+            let gradle = fs.readFileSync(gradlePath, "utf8");
+            gradle = gradle.replace(/versionCode\s+\d+/, "versionCode " + process.env.VERSION_CODE);
+            gradle = gradle.replace(/versionName\s+"[^"]+"/, "versionName \"" + process.env.VERSION_NAME + "\"");
+            fs.writeFileSync(gradlePath, gradle);
+          '
+          npx cap sync android
+        env:
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+
+      - name: Build & sign Play Store App Bundle (.aab)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'wacky3d-upload' }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/release.jks"
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.jks" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASS" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASS"
+          jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab | tail -n 10
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wacky-3d-calculator-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
