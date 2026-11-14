@@ -9,7 +9,7 @@ export const ANDROID_BLUEPRINT_FILES: AndroidBlueprintFile[] = [
   {
     path: 'app/build.gradle.kts',
     language: 'kotlin',
-    summary: 'Gradle module config (API 26+, Jetpack Compose BOM, Material 3, AdMob, Play Billing v7)',
+    summary: 'Gradle module config (API 26+, Jetpack Compose BOM, Material 3, AdMob)',
     content: `plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -61,11 +61,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.datastore:datastore-preferences:1.1.2")
 
-    // Google AdMob SDK (use Google test IDs during debug)
+    // Google AdMob SDK
     implementation("com.google.android.gms:play-services-ads:23.6.0")
-
-    // Google Play Billing Library
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
 
     testImplementation("junit:junit:4.13.2")
 }`,
@@ -79,6 +76,7 @@ dependencies {
 
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <application
         android:allowBackup="true"
@@ -88,10 +86,10 @@ dependencies {
         android:supportsRtl="true"
         android:theme="@style/Theme.Wacky3DCalculator">
 
-        <!-- Replace with your real AdMob App ID before Play Store release -->
+        <!-- Production Google AdMob App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-4582959030219358~8991228181" />
 
         <activity
             android:name=".MainActivity"
@@ -281,92 +279,6 @@ class SoundManager(context: Context) {
 }`,
   },
   {
-    path: 'app/src/main/java/com/wacky3d/calculator/monetization/BillingManager.kt',
-    language: 'kotlin',
-    summary: 'Google Play Billing v7 one-time purchase, acknowledgement & restore purchases flow',
-    content: `package com.wacky3d.calculator.monetization
-
-import android.app.Activity
-import android.content.Context
-import com.android.billingclient.api.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-
-class BillingManager(context: Context) : PurchasesUpdatedListener {
-    companion object {
-        const val PREMIUM_PRODUCT_ID = "wacky_3d_calc_premium_lifetime"
-    }
-
-    private val _isPremium = MutableStateFlow(false)
-    val isPremium: StateFlow<Boolean> = _isPremium
-
-    private val billingClient = BillingClient.newBuilder(context)
-        .setListener(this)
-        .enablePendingPurchases(
-            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
-        )
-        .build()
-
-    fun connectAndRestore() {
-        billingClient.startConnection(object : BillingClientStateListener {
-            override fun onBillingSetupFinished(result: BillingResult) {
-                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    queryExistingPurchases()
-                }
-            }
-            override fun onBillingServiceDisconnected() {}
-        })
-    }
-
-    fun queryExistingPurchases() {
-        val params = QueryPurchasesParams.newBuilder()
-            .setProductType(BillingClient.ProductType.INAPP)
-            .build()
-        billingClient.queryPurchasesAsync(params) { result, purchases ->
-            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                val owned = purchases.any {
-                    it.products.contains(PREMIUM_PRODUCT_ID) &&
-                    it.purchaseState == Purchase.PurchaseState.PURCHASED
-                }
-                _isPremium.value = owned
-                purchases.filter { !it.isAcknowledged }.forEach(::acknowledgePurchase)
-            }
-        }
-    }
-
-    fun launchPurchaseFlow(activity: Activity, productDetails: ProductDetails) {
-        val params = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(
-                listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(productDetails)
-                        .build()
-                )
-            )
-            .build()
-        billingClient.launchBillingFlow(activity, params)
-    }
-
-    override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
-        if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            purchases.forEach { purchase ->
-                if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                    if (!purchase.isAcknowledged) acknowledgePurchase(purchase)
-                    _isPremium.value = true
-                }
-            }
-        }
-    }
-
-    private fun acknowledgePurchase(purchase: Purchase) {
-        val params = AcknowledgePurchaseParams.newBuilder()
-            .setPurchaseToken(purchase.purchaseToken)
-            .build()
-        billingClient.acknowledgePurchase(params) { /* Verified & persisted by Play */ }
-    }
-}`,
-  },
-  {
     path: 'app/src/main/java/com/wacky3d/calculator/ui/Wacky3DKeycap.kt',
     language: 'kotlin',
     summary: 'Jetpack Compose 3D extruded keycap with Jelly/Squishy/Bouncy/Rubber/Pop spring physics',
@@ -470,19 +382,19 @@ export const PLAY_STORE_CHECKLIST = [
     ],
   },
   {
-    title: '2. Replace Placeholder Monetization IDs',
+    title: '2. Verify Production AdMob IDs',
     steps: [
-      'Replace ca-app-pub-3940256099942544~3347511713 in AndroidManifest.xml with your production AdMob App ID.',
-      'Replace Banner, Interstitial, and Rewarded test Ad Unit IDs with live AdMob Ad Unit IDs.',
-      'Create the one-time in-app product wacky_3d_calc_premium_lifetime in Google Play Console > Monetize > Products.',
+      'Confirm AndroidManifest.xml uses App ID ca-app-pub-4582959030219358~8991228181.',
+      'Confirm Interstitial Ad Unit ID ca-app-pub-4582959030219358/5327315340 is configured in AdManager.',
+      'Ensure UMP consent messaging is published in your AdMob console for EEA/UK users.',
     ],
   },
   {
     title: '3. Upload & Release on Google Play Console',
     steps: [
-      'Create a new app in Google Play Console and complete Data Safety (declare AdMob & Play Billing; zero calculation data collected).',
+      'Create a new app in Google Play Console and complete Data Safety (declare AdMob Device/Advertising IDs; zero calculation data collected).',
       'Upload your Privacy Policy URL and set Target Audience & Content Rating (IARC).',
-      'Upload app-release.aab to Internal Testing first to test Play Billing test cards and UMP Ad Consent.',
+      'Upload app-release.aab to Internal/Closed Testing first to verify AdMob initialization and UMP Ad Consent.',
       'Promote the verified build to Production rollout.',
     ],
   },
@@ -494,10 +406,7 @@ export const PRIVACY_POLICY_TEXT = `Wacky 3D Calculator — Privacy Policy
 All calculations, calculation history, memory registers (MC/MR/M+/M-), theme selections, and sound preferences are stored strictly on your device. We never transmit or sell your calculations.
 
 2. Minimal Permissions
-The app requests only VIBRATE (for optional tactile haptic feedback) and INTERNET (solely for loading optional ads and verifying Google Play purchases). We never access contacts, location, microphone, or camera.
+The app requests only VIBRATE (for optional tactile haptic feedback) and INTERNET (solely for loading Google AdMob ads). We never access contacts, location, microphone, or camera.
 
-3. Advertising & Consent (Free Tier)
-The free version uses Google AdMob banner and optional rewarded ads. Where required by law (EEA/UK/California), a consent dialog is presented prior to personalized ad loading. Upgrading to Premium removes all ads completely.
-
-4. Purchases
-One-time Premium upgrades are processed securely through Google Play Billing. Entitlements can be restored anytime on reinstalls using the same Google account.`;
+3. Advertising & Consent
+Wacky 3D Calculator is completely free to use and is supported exclusively by Google AdMob advertisements. Where required by law (EEA/UK/California), a consent dialog is presented prior to personalized ad loading.`;

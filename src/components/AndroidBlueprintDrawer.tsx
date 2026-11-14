@@ -58,7 +58,7 @@ export const AndroidBlueprintDrawer: React.FC<AndroidBlueprintDrawerProps> = ({
               Android Studio Kotlin Blueprint & Play Store Release Guide
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Jetpack Compose · Material 3 · SoundPool · AdMob · Play Billing v7 · Signed AAB
+              Jetpack Compose · Material 3 · SoundPool · AdMob · Signed AAB
             </p>
           </div>
           <button

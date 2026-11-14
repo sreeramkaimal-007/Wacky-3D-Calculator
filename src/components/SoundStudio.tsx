@@ -1,20 +1,15 @@
 import React, { useState } from 'react';
-import { Lock, Play, Shuffle, Volume2, VolumeX, Check } from 'lucide-react';
+import { Check, Play, Shuffle, Volume2, VolumeX } from 'lucide-react';
 import { SOUND_PACKS, SoundManager } from '../audio/SoundManager';
 import {
-  MonetizationState,
   SoundPackId,
   SoundPackMeta,
   UserPreferences,
 } from '../types/calculator';
-import { isSoundPackUnlocked } from '../monetization/MonetizationManager';
 
 interface SoundStudioProps {
   prefs: UserPreferences;
-  monetization: MonetizationState;
   onUpdatePrefs: (patch: Partial<UserPreferences>) => void;
-  onRequestRewardedSound: (pack: SoundPackMeta) => void;
-  onOpenPremium: () => void;
 }
 
 const CATEGORIES: Array<'All' | SoundPackMeta['category']> = [
@@ -28,10 +23,7 @@ const CATEGORIES: Array<'All' | SoundPackMeta['category']> = [
 
 export const SoundStudio: React.FC<SoundStudioProps> = ({
   prefs,
-  monetization,
   onUpdatePrefs,
-  onRequestRewardedSound,
-  onOpenPremium,
 }) => {
   const [filter, setFilter] = useState<'All' | SoundPackMeta['category']>('All');
   const [lastPreviewId, setLastPreviewId] = useState<SoundPackId | null>(null);
@@ -48,11 +40,6 @@ export const SoundStudio: React.FC<SoundStudioProps> = ({
   };
 
   const handleSelectPack = (pack: SoundPackMeta) => {
-    const unlocked = isSoundPackUnlocked(pack.id, pack.isPremium, monetization);
-    if (!unlocked) {
-      onRequestRewardedSound(pack);
-      return;
-    }
     SoundManager.prewarm();
     SoundManager.play(pack.id, prefs.soundVolume, 'number');
     onUpdatePrefs({
@@ -60,10 +47,6 @@ export const SoundStudio: React.FC<SoundStudioProps> = ({
       soundEnabled: pack.id !== 'silent',
     });
   };
-
-  const unlockedPacksForRoles = SOUND_PACKS.filter((p) =>
-    isSoundPackUnlocked(p.id, p.isPremium, monetization)
-  );
 
   return (
     <div className="space-y-6">
@@ -75,7 +58,7 @@ export const SoundStudio: React.FC<SoundStudioProps> = ({
               Sound Studio & Sound Test
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Preview all 15 tactile sound packs, adjust volume, or enable Random Mode.
+              All 15 tactile sound packs unlocked — preview, adjust volume, or enable Random Mode.
             </p>
           </div>
           <button
@@ -209,7 +192,7 @@ export const SoundStudio: React.FC<SoundStudioProps> = ({
                   }}
                   className="w-full min-h-[42px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100"
                 >
-                  {unlockedPacksForRoles.map((p) => (
+                  {SOUND_PACKS.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -222,43 +205,26 @@ export const SoundStudio: React.FC<SoundStudioProps> = ({
       </div>
 
       {/* Category Filter Bar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 overflow-x-auto max-w-full">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setFilter(cat)}
-              className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
-                filter === cat
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {!monetization.isPremium && (
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 overflow-x-auto max-w-full w-fit">
+        {CATEGORIES.map((cat) => (
           <button
+            key={cat}
             type="button"
-            onClick={onOpenPremium}
-            className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline whitespace-nowrap cursor-pointer"
+            onClick={() => setFilter(cat)}
+            className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+              filter === cat
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
           >
-            Unlock all 15 packs with Premium
+            {cat}
           </button>
-        )}
+        ))}
       </div>
 
       {/* Sound Pack Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filteredPacks.map((pack) => {
-          const unlocked = isSoundPackUnlocked(
-            pack.id,
-            pack.isPremium,
-            monetization
-          );
           const isSelected = prefs.soundPack === pack.id;
 
           return (
@@ -282,12 +248,9 @@ export const SoundStudio: React.FC<SoundStudioProps> = ({
                   {isSelected && (
                     <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   )}
-                  {!unlocked && (
-                    <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  )}
                 </div>
                 <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {pack.category} · {pack.isPremium ? (unlocked ? 'Unlocked' : 'Premium / Watch Ad') : 'Free'}
+                  {pack.category}
                 </div>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 truncate">
                   {pack.description}

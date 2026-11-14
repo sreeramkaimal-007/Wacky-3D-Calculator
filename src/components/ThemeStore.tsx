@@ -1,34 +1,18 @@
 import React from 'react';
-import { Check, Lock, Moon, Sun } from 'lucide-react';
+import { Check, Moon, Sun } from 'lucide-react';
 import { THEMES } from '../themes/ThemeRegistry';
-import {
-  CalculatorTheme,
-  MonetizationState,
-  UserPreferences,
-} from '../types/calculator';
-import { isThemeUnlocked } from '../monetization/MonetizationManager';
+import { CalculatorTheme, UserPreferences } from '../types/calculator';
 
 interface ThemeStoreProps {
   prefs: UserPreferences;
-  monetization: MonetizationState;
   onUpdatePrefs: (patch: Partial<UserPreferences>) => void;
-  onRequestRewardedTheme: (theme: CalculatorTheme) => void;
-  onOpenPremium: () => void;
 }
 
 export const ThemeStore: React.FC<ThemeStoreProps> = ({
   prefs,
-  monetization,
   onUpdatePrefs,
-  onRequestRewardedTheme,
-  onOpenPremium,
 }) => {
   const handleSelectTheme = (theme: CalculatorTheme) => {
-    const unlocked = isThemeUnlocked(theme.id, theme.isPremium, monetization);
-    if (!unlocked) {
-      onRequestRewardedTheme(theme);
-      return;
-    }
     onUpdatePrefs({ themeId: theme.id });
   };
 
@@ -38,10 +22,10 @@ export const ThemeStore: React.FC<ThemeStoreProps> = ({
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
-            Theme Store
+            Theme Gallery
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            4 free toy themes + 4 premium editions unlockable via Premium or rewarded preview.
+            All 8 playful toy themes unlocked — pick your favorite color mood and Light/Dark mode.
           </p>
         </div>
 
@@ -76,11 +60,6 @@ export const ThemeStore: React.FC<ThemeStoreProps> = ({
       {/* 8 Themes Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {THEMES.map((theme) => {
-          const unlocked = isThemeUnlocked(
-            theme.id,
-            theme.isPremium,
-            monetization
-          );
           const isSelected = prefs.themeId === theme.id;
 
           return (
@@ -103,17 +82,7 @@ export const ThemeStore: React.FC<ThemeStoreProps> = ({
                     {isSelected && (
                       <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                     )}
-                    {!unlocked && (
-                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    )}
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    {theme.isPremium
-                      ? unlocked
-                        ? 'Premium · Unlocked'
-                        : 'Premium · Tap for Rewarded Preview'
-                      : 'Free Theme'}
-                  </p>
                 </div>
 
                 {/* Mini 3D Keycap Swatches */}
@@ -138,21 +107,6 @@ export const ThemeStore: React.FC<ThemeStoreProps> = ({
           );
         })}
       </div>
-
-      {!monetization.isPremium && (
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-slate-700 dark:text-slate-300">
-            Unlock Neon Cyber, Lava Fire, Galaxy Space & Chocolate World permanently.
-          </div>
-          <button
-            type="button"
-            onClick={onOpenPremium}
-            className="min-h-[40px] px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold whitespace-nowrap cursor-pointer"
-          >
-            Upgrade to Premium
-          </button>
-        </div>
-      )}
     </div>
   );
 };

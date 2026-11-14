@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calculator as CalcIcon,
-  Crown,
   History as HistoryIcon,
+  Moon,
   Palette,
   Settings as SettingsIcon,
+  Sun,
   Volume2,
 } from 'lucide-react';
 import {
@@ -29,21 +30,12 @@ import {
   saveMemory,
   savePreferences,
 } from './services/PreferencesManager';
-import {
-  grantRewardedSoundUnlock,
-  grantRewardedThemeUnlock,
-  isSoundPackUnlocked,
-  loadMonetizationState,
-  saveMonetizationState,
-} from './monetization/MonetizationManager';
+import { AdManager } from './monetization/AdManager';
 import {
   ButtonRole,
   CalcButtonSpec,
-  CalculatorTheme,
   HistoryEntry,
-  MonetizationState,
   SoundPackId,
-  SoundPackMeta,
   StudioTab,
   UserPreferences,
 } from './types/calculator';
@@ -53,7 +45,6 @@ import { SoundStudio } from './components/SoundStudio';
 import { ThemeStore } from './components/ThemeStore';
 import { HistoryPanel } from './components/HistoryPanel';
 import { SettingsScreen } from './components/SettingsScreen';
-import { PremiumModal } from './components/PremiumModal';
 import { AndroidBlueprintDrawer } from './components/AndroidBlueprintDrawer';
 import { PWAInstallButton } from './components/PWAInstallButton';
 
@@ -61,9 +52,6 @@ const OPERATORS = new Set(['+', '−', '×', '÷']);
 
 export default function App() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
-  const [monetization, setMonetization] = useState<MonetizationState>(() =>
-    loadMonetizationState()
-  );
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [memoryValue, setMemoryValue] = useState<number>(() => loadMemory());
 
@@ -88,9 +76,6 @@ export default function App() {
   const [shakeNotice, setShakeNotice] = useState<boolean>(false);
 
   // Modals
-  const [premiumOpen, setPremiumOpen] = useState<boolean>(false);
-  const [rewardTheme, setRewardTheme] = useState<CalculatorTheme | null>(null);
-  const [rewardSound, setRewardSound] = useState<SoundPackMeta | null>(null);
   const [androidExportOpen, setAndroidExportOpen] = useState<boolean>(false);
 
   const activeTheme = useMemo(() => getThemeById(prefs.themeId), [prefs.themeId]);
@@ -104,6 +89,11 @@ export default function App() {
       root.classList.remove('dark');
     }
   }, [prefs.appearanceMode]);
+
+  // Initialize AdMob Interstitial & UMP consent on native Android (no-op on web)
+  useEffect(() => {
+    void AdManager.initialize();
+  }, []);
 
   const updatePrefs = useCallback((patch: Partial<UserPreferences>) => {
     setPrefs((prev) => {
@@ -126,12 +116,7 @@ export default function App() {
       let chosenPack: SoundPackId = prefs.soundPack;
 
       if (prefs.randomSoundMode) {
-        const unlockedPool = SOUND_PACKS.filter(
-          (p) =>
-            p.id !== 'silent' &&
-            isSoundPackUnlocked(p.id, p.isPremium, monetization)
-        ).map((p) => p.id);
-        chosenPack = SoundManager.pickRandomPack(unlockedPool);
+        chosenPack = SoundManager.pickRandomPack();
       } else if (prefs.roleSoundOverrides.enabled) {
         if (role === 'number') chosenPack = prefs.roleSoundOverrides.number;
         else if (role === 'clear') chosenPack = prefs.roleSoundOverrides.clear;
@@ -145,7 +130,7 @@ export default function App() {
         SoundManager.playCelebration(prefs.soundVolume);
       }
     },
-    [monetization, prefs]
+    [prefs]
   );
 
   const handleClearAll = useCallback(() => {
@@ -345,6 +330,7 @@ export default function App() {
       saveHistory(next);
       return next;
     });
+    AdManager.recordCalculationComplete();
   }, [
     currentInput,
     enteringOperand,
@@ -357,6 +343,7 @@ export default function App() {
 
   const handleButtonPress = useCallback(
     (spec: CalcButtonSpec) => {
+      AdManager.recordTap();
       const isEqual = spec.value === '=';
       playButtonSound(spec.role, isEqual);
 
@@ -513,54 +500,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleCopyResult, handlePasteNumber]);
 
-  // Monetization handlers
-  const handlePurchasePremium = () => {
-    const next: MonetizationState = {
-      ...monetization,
-      isPremium: true,
-      purchaseToken: `demo_play_token_${Date.now()}`,
-      purchasedAt: Date.now(),
-    };
-    setMonetization(next);
-    saveMonetizationState(next);
-    setPremiumOpen(false);
-    setRewardTheme(null);
-    setRewardSound(null);
-  };
-
-  const handleRestorePurchases = () => {
-    const loaded = loadMonetizationState();
-    setMonetization(loaded);
-  };
-
-  const handleRevokeDemoPremium = () => {
-    const next: MonetizationState = {
-      ...monetization,
-      isPremium: false,
-      purchaseToken: null,
-      purchasedAt: null,
-    };
-    setMonetization(next);
-    saveMonetizationState(next);
-  };
-
-  const handleCompleteRewardedAd = () => {
-    if (rewardTheme) {
-      const next = grantRewardedThemeUnlock(monetization, rewardTheme.id);
-      setMonetization(next);
-      updatePrefs({ themeId: rewardTheme.id });
-      setRewardTheme(null);
-      setPremiumOpen(false);
-    } else if (rewardSound) {
-      const next = grantRewardedSoundUnlock(monetization, rewardSound.id);
-      setMonetization(next);
-      updatePrefs({ soundPack: rewardSound.id, soundEnabled: true });
-      SoundManager.play(rewardSound.id, prefs.soundVolume, 'number');
-      setRewardSound(null);
-      setPremiumOpen(false);
-    }
-  };
-
   const formattedDisplay = formatDisplayInput(currentInput);
   const currentExpressionDisplay = tokens
     .map((t) => (OPERATORS.has(t) ? t : formatDisplayInput(t)))
@@ -569,6 +508,7 @@ export default function App() {
   const openSection = (tab: Exclude<StudioTab, 'calculator'>) => {
     setDesktopTab(tab);
     setMobileTab(tab);
+    void AdManager.maybeShowInterstitialOnTransition();
   };
 
   const renderStudioPanel = (tab: Exclude<StudioTab, 'calculator'>) => {
@@ -577,36 +517,14 @@ export default function App() {
         return (
           <SoundStudio
             prefs={prefs}
-            monetization={monetization}
             onUpdatePrefs={updatePrefs}
-            onRequestRewardedSound={(pack) => {
-              setRewardTheme(null);
-              setRewardSound(pack);
-              setPremiumOpen(true);
-            }}
-            onOpenPremium={() => {
-              setRewardTheme(null);
-              setRewardSound(null);
-              setPremiumOpen(true);
-            }}
           />
         );
       case 'themes':
         return (
           <ThemeStore
             prefs={prefs}
-            monetization={monetization}
             onUpdatePrefs={updatePrefs}
-            onRequestRewardedTheme={(theme) => {
-              setRewardSound(null);
-              setRewardTheme(theme);
-              setPremiumOpen(true);
-            }}
-            onOpenPremium={() => {
-              setRewardTheme(null);
-              setRewardSound(null);
-              setPremiumOpen(true);
-            }}
           />
         );
       case 'history':
@@ -639,7 +557,6 @@ export default function App() {
         return (
           <SettingsScreen
             prefs={prefs}
-            monetization={monetization}
             onUpdatePrefs={updatePrefs}
             onResetPrefs={handleResetPrefs}
             onTestShakeClear={() => {
@@ -647,11 +564,6 @@ export default function App() {
               triggerHaptic(prefs.vibrationEnabled, 'strong');
               setShakeNotice(true);
               setTimeout(() => setShakeNotice(false), 1800);
-            }}
-            onOpenPremium={() => {
-              setRewardTheme(null);
-              setRewardSound(null);
-              setPremiumOpen(true);
             }}
             onOpenAndroidExport={() => setAndroidExportOpen(true)}
             onOpenSoundStudio={() => openSection('sounds')}
@@ -696,7 +608,10 @@ export default function App() {
                 <button
                   key={tabId}
                   type="button"
-                  onClick={() => setDesktopTab(tabId)}
+                  onClick={() => {
+                    setDesktopTab(tabId);
+                    void AdManager.maybeShowInterstitialOnTransition();
+                  }}
                   className={`whitespace-nowrap shrink-0 py-1 border-b-2 transition-colors cursor-pointer ${
                     active
                       ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white font-semibold'
@@ -709,19 +624,30 @@ export default function App() {
             })}
           </nav>
 
-          {/* Zone 3: Primary Action (Premium) */}
+          {/* Zone 3: Primary Action (Light / Dark Appearance) */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => {
-                setRewardTheme(null);
-                setRewardSound(null);
-                setPremiumOpen(true);
-              }}
-              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition-opacity whitespace-nowrap shrink-0 cursor-pointer"
+              onClick={() =>
+                updatePrefs({
+                  appearanceMode:
+                    prefs.appearanceMode === 'dark' ? 'light' : 'dark',
+                })
+              }
+              aria-label="Toggle dark mode"
+              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <Crown className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
-              <span>{monetization.isPremium ? 'Premium' : 'Go Premium'}</span>
+              {prefs.appearanceMode === 'dark' ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Light Mode</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Dark Mode</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -760,16 +686,10 @@ export default function App() {
               justEvaluated={justEvaluated}
               celebrateBurstId={celebrateBurstId}
               copied={copied}
-              isPremium={monetization.isPremium}
               onButtonPress={handleButtonPress}
               onMemoryAction={handleMemoryAction}
               onCopy={handleCopyResult}
               onPaste={handlePasteNumber}
-              onOpenPremium={() => {
-                setRewardTheme(null);
-                setRewardSound(null);
-                setPremiumOpen(true);
-              }}
             />
             <div className="mt-3 max-w-[440px] mx-auto lg:hidden">
               <PWAInstallButton variant="card" />
@@ -838,7 +758,10 @@ export default function App() {
               type="button"
               onClick={() => {
                 setMobileTab(id);
-                if (id !== 'calculator') setDesktopTab(id);
+                if (id !== 'calculator') {
+                  setDesktopTab(id);
+                  void AdManager.maybeShowInterstitialOnTransition();
+                }
               }}
               className={`min-h-[48px] flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors ${
                 active
@@ -855,23 +778,7 @@ export default function App() {
         })}
       </nav>
 
-      {/* Modals */}
-      <PremiumModal
-        open={premiumOpen}
-        monetization={monetization}
-        rewardTargetTheme={rewardTheme}
-        rewardTargetSound={rewardSound}
-        onClose={() => {
-          setPremiumOpen(false);
-          setRewardTheme(null);
-          setRewardSound(null);
-        }}
-        onPurchasePremium={handlePurchasePremium}
-        onRestorePurchases={handleRestorePurchases}
-        onRevokeDemoPremium={handleRevokeDemoPremium}
-        onCompleteRewardedAd={handleCompleteRewardedAd}
-      />
-
+      {/* Android Blueprint Modal */}
       <AndroidBlueprintDrawer
         open={androidExportOpen}
         onClose={() => setAndroidExportOpen(false)}

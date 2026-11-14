@@ -24,10 +24,25 @@ jobs:
         run: |
           npm install --legacy-peer-deps
           npm run build
-          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android
+          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android @capacitor-community/admob
           rm -f capacitor.config.ts
           node -e 'require("fs").writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.wacky3d.calculator",appName:"Wacky 3D Calculator",webDir:"dist",android:{allowMixedContent:false,backgroundColor:"#FFEAF3"}}, null, 2))'
           npx cap add android
+          node -e '
+            const fs = require("fs");
+            const manifestPath = "android/app/src/main/AndroidManifest.xml";
+            let xml = fs.readFileSync(manifestPath, "utf8");
+            if (!xml.includes("android.permission.VIBRATE")) {
+              xml = xml.replace("<application", "<uses-permission android:name=\"android.permission.VIBRATE\" />\n    <application");
+            }
+            if (!xml.includes("com.google.android.gms.permission.AD_ID")) {
+              xml = xml.replace("<application", "<uses-permission android:name=\"com.google.android.gms.permission.AD_ID\" />\n    <application");
+            }
+            if (!xml.includes("com.google.android.gms.ads.APPLICATION_ID")) {
+              xml = xml.replace("</application>", "    <meta-data\n            android:name=\"com.google.android.gms.ads.APPLICATION_ID\"\n            android:value=\"ca-app-pub-4582959030219358~8991228181\" />\n    </application>");
+            }
+            fs.writeFileSync(manifestPath, xml);
+          '
           npx cap sync android
           cd android
           chmod +x gradlew

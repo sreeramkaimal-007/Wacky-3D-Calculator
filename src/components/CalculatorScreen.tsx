@@ -9,7 +9,6 @@ import {
 } from '../types/calculator';
 import { CalculatorDisplay } from './CalculatorDisplay';
 import { CalculatorButton } from './CalculatorButton';
-import { ADMOB_TEST_CONFIG } from '../monetization/MonetizationManager';
 
 export const CALCULATOR_BUTTONS: CalcButtonSpec[] = [
   { id: 'ac', label: 'AC', value: 'AC', role: 'clear', ariaLabel: 'All Clear' },
@@ -53,12 +52,10 @@ interface CalculatorScreenProps {
   justEvaluated: boolean;
   celebrateBurstId: number;
   copied: boolean;
-  isPremium: boolean;
   onButtonPress: (spec: CalcButtonSpec) => void;
   onMemoryAction: (action: 'MC' | 'MR' | 'M+' | 'M-') => void;
   onCopy: () => void;
   onPaste: () => void;
-  onOpenPremium: () => void;
 }
 
 export const CalculatorScreen: React.FC<CalculatorScreenProps> = ({
@@ -76,12 +73,10 @@ export const CalculatorScreen: React.FC<CalculatorScreenProps> = ({
   justEvaluated,
   celebrateBurstId,
   copied,
-  isPremium,
   onButtonPress,
   onMemoryAction,
   onCopy,
   onPaste,
-  onOpenPremium,
 }) => {
   const isDark = appearanceMode === 'dark';
   const chassisBg = isDark ? theme.chassisBgDark : theme.chassisBgLight;
@@ -202,27 +197,6 @@ export const CalculatorScreen: React.FC<CalculatorScreenProps> = ({
           ))}
         </div>
       </div>
-
-      {/* Dedicated Non-Obstructive AdMob Banner Area (Free Tier Only) */}
-      {!isPremium && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/85 dark:bg-slate-900/85 px-3.5 py-2.5 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
-              Test Ad Banner · {ADMOB_TEST_CONFIG.bannerAdUnitId.slice(-10)}
-            </p>
-            <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
-              Go ad-free & unlock all 15 sounds + 8 themes
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenPremium}
-            className="shrink-0 whitespace-nowrap min-h-[36px] px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            Remove Ads
-          </button>
-        </div>
-      )}
     </div>
   );
 };

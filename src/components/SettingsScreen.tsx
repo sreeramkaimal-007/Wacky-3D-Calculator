@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Code2,
-  Crown,
   RotateCcw,
   Share2,
   Shield,
@@ -11,7 +10,6 @@ import {
 import {
   AnimationStyle,
   HapticIntensity,
-  MonetizationState,
   UserPreferences,
 } from '../types/calculator';
 import { AppIcon } from './AppIcon';
@@ -20,11 +18,9 @@ import { PRIVACY_POLICY_TEXT } from '../data/AndroidProjectExport';
 
 interface SettingsScreenProps {
   prefs: UserPreferences;
-  monetization: MonetizationState;
   onUpdatePrefs: (patch: Partial<UserPreferences>) => void;
   onResetPrefs: () => void;
   onTestShakeClear: () => void;
-  onOpenPremium: () => void;
   onOpenAndroidExport: () => void;
   onOpenSoundStudio: () => void;
   onOpenThemeStore: () => void;
@@ -44,11 +40,9 @@ const ANIMATION_STYLES: Array<{
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   prefs,
-  monetization,
   onUpdatePrefs,
   onResetPrefs,
   onTestShakeClear,
-  onOpenPremium,
   onOpenAndroidExport,
   onOpenSoundStudio,
   onOpenThemeStore,
@@ -286,18 +280,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </button>
           <button
             type="button"
-            onClick={onOpenPremium}
-            className="min-h-[44px] px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 text-sm font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2 cursor-pointer"
-          >
-            <Crown className="w-4 h-4 shrink-0" />
-            <span>
-              {monetization.isPremium ? 'Premium Active' : 'Upgrade to Premium'}
-            </span>
-          </button>
-          <button
-            type="button"
             onClick={onOpenAndroidExport}
-            className="min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+            className="min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 sm:col-span-2 cursor-pointer"
           >
             <Code2 className="w-4 h-4 shrink-0 text-sky-600 dark:text-sky-400" />
             <span>Android Kotlin & AAB Guide</span>

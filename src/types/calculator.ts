@@ -40,7 +40,6 @@ export interface SoundPackMeta {
   name: string;
   description: string;
   category: 'Tactile' | 'Playful' | 'Arcade' | 'Nature' | 'Quiet';
-  isPremium: boolean;
 }
 
 export interface RoleSoundOverrides {
@@ -62,7 +61,6 @@ export interface CalculatorTheme {
   id: ThemeId;
   name: string;
   tagline: string;
-  isPremium: boolean;
   previewSwatches: [string, string, string, string];
   chassisBgLight: string;
   chassisBgDark: string;
@@ -106,16 +104,6 @@ export interface UserPreferences {
   shakeToClearEnabled: boolean;
   themeId: ThemeId;
   appearanceMode: AppearanceMode;
-}
-
-export interface MonetizationState {
-  isPremium: boolean;
-  purchaseToken: string | null;
-  purchasedAt: number | null;
-  /** Temporary session unlocks earned via rewarded ad previews */
-  rewardedThemeUnlocks: Record<string, number>;
-  rewardedSoundUnlocks: Record<string, number>;
-  calculationsSinceLastInterstitial: number;
 }
 
 export interface CalcButtonSpec {
